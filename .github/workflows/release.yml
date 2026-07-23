@@ -1,0 +1,51 @@
+name: Build Release Executables
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            asset_name: guessing-game-macos
+          - os: ubuntu-latest
+            asset_name: guessing-game-linux
+          - os: windows-latest
+            asset_name: guessing-game-windows.exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build executable
+        run: pyinstaller --onefile main.py
+
+      - name: Rename executable (Unix)
+        if: matrix.os != 'windows-latest'
+        run: mv dist/main dist/${{ matrix.asset_name }}
+
+      - name: Rename executable (Windows)
+        if: matrix.os == 'windows-latest'
+        run: mv dist/main.exe dist/${{ matrix.asset_name }}
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ matrix.asset_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
